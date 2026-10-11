@@ -1,6 +1,13 @@
 import React, { useRef } from 'react';
 import { Upload, FileText, Download, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 
+const GithubIcon = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+    <path d="M9 18c-4.51 2-5-2-7-2" />
+  </svg>
+);
+
 const CHAPTER_TITLES = {
   1: "Ch 1: Introduction",
   2: "Ch 2: Requirements",
@@ -16,6 +23,7 @@ export default function Sidebar({
   onSelectProject,
   uploadedFiles,
   onFileUpload,
+  onOpenImportCodeModal,
   chaptersData,
   currentChapterNumber,
   onSelectChapter,
@@ -64,13 +72,31 @@ export default function Sidebar({
       </div>
 
       {/* Knowledge Files Uploader (RAG) */}
-      <div class="sidebar-card">
-        <div class="sidebar-card-header">
+      <div className="sidebar-card">
+        <div className="sidebar-card-header">
           <h4>Knowledge Files (RAG)</h4>
         </div>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-          Upload PDFs, DOCX, or code files to index into ChromaDB.
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+          Upload PDFs, code files, or import directly from GitHub to index into ChromaDB.
         </p>
+
+        <button
+          type="button"
+          className="btn btn-secondary btn-block btn-github-side"
+          onClick={onOpenImportCodeModal}
+          style={{
+            marginBottom: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            fontSize: '0.82rem',
+            padding: '8px 12px'
+          }}
+        >
+          <GithubIcon size={15} />
+          <span>Import Code from GitHub</span>
+        </button>
 
         <div 
           class="upload-dropzone"

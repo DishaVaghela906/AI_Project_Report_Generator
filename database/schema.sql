@@ -51,8 +51,9 @@ CREATE TABLE IF NOT EXISTS projects (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Ensure user_id column exists on projects table for both new and existing databases
+-- Ensure user_id and github_url columns exist on projects table for both new and existing databases
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS github_url TEXT;
 
 -- ─────────────────────────────────────────────────────────────
 -- 3. UPLOADED FILES TABLE

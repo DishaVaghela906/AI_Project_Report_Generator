@@ -12,10 +12,19 @@ from loguru import logger
 from app.core.auth import get_current_user_optional
 from app.core.database import get_supabase
 from app.models.schemas import (
+    GitHubAnalyzeRequest,
+    GitHubAnalyzeResponse,
+    GitHubImportToProjectRequest,
     MessageResponse,
     ProjectCreateRequest,
     ProjectResponse,
     ProjectUpdateRequest,
+)
+from app.services.github_service import (
+    analyze_github_codebase,
+    fetch_github_repository_data,
+    ingest_github_to_rag,
+    parse_github_url,
 )
 from app.services.vector_store import delete_project_vectors
 
@@ -66,10 +75,31 @@ async def create_project(
         "updated_at": now,
     }
 
-    result = db.table("projects").insert(row).execute()
+    if payload.github_url:
+        row["github_url"] = payload.github_url
+
+    try:
+        result = db.table("projects").insert(row).execute()
+    except Exception as e:
+        if "github_url" in str(e) and "github_url" in row:
+            logger.warning("Supabase table 'projects' does not yet have 'github_url' column. Inserting without it.")
+            row.pop("github_url", None)
+            result = db.table("projects").insert(row).execute()
+        else:
+            raise
 
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create project in database")
+
+    # If GitHub URL provided, automatically ingest code structure, schemas, and README into RAG
+    if payload.github_url:
+        try:
+            owner, repo_name, branch = parse_github_url(payload.github_url)
+            repo_data = await fetch_github_repository_data(owner, repo_name, branch)
+            analysis = await analyze_github_codebase(repo_data)
+            await ingest_github_to_rag(row["id"], repo_data, analysis)
+        except Exception as e:
+            logger.warning(f"Failed to auto-ingest GitHub repo into RAG during creation: {e}")
 
     logger.info(f"Project created: {row['id']} — '{payload.title}'")
     return _map_project(result.data[0])
@@ -126,7 +156,15 @@ async def update_project(project_id: str, payload: ProjectUpdateRequest):
 
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-    result = db.table("projects").update(updates).eq("id", project_id).execute()
+    try:
+        result = db.table("projects").update(updates).eq("id", project_id).execute()
+    except Exception as e:
+        if "github_url" in str(e) and "github_url" in updates:
+            updates.pop("github_url", None)
+            result = db.table("projects").update(updates).eq("id", project_id).execute()
+        else:
+            raise
+
     return _map_project(result.data[0])
 
 
@@ -147,6 +185,83 @@ async def delete_project(project_id: str):
 
     logger.info(f"Project deleted: {project_id}")
     return MessageResponse(message=f"Project '{project_id}' deleted successfully")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GITHUB CODE IMPORT & ANALYSIS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post("/analyze-github", response_model=GitHubAnalyzeResponse)
+async def analyze_github_repo(payload: GitHubAnalyzeRequest):
+    """
+    Parses a GitHub repository URL, inspects its file tree, README, dependencies,
+    and database schemas, and synthesizes an academic project profile.
+    """
+    try:
+        target_url = payload.target_url
+        owner, repo, branch = parse_github_url(target_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    try:
+        repo_data = await fetch_github_repository_data(owner, repo, branch or payload.branch)
+        analysis = await analyze_github_codebase(repo_data)
+        return GitHubAnalyzeResponse(
+            github_url=analysis.get("github_url", target_url),
+            owner=analysis.get("owner", owner),
+            repo=analysis.get("repo", repo),
+            title=analysis.get("title", f"{repo} Project"),
+            domain=analysis.get("domain", "Web Application"),
+            category=analysis.get("category", "Application or System Development"),
+            problem_statement=analysis.get("problem_statement", ""),
+            tech_stack=analysis.get("tech_stack", []),
+            modules=analysis.get("modules", []),
+            database_used=analysis.get("database_used"),
+            methodology=analysis.get("methodology", "Agile Iterative Development"),
+            existing_system=analysis.get("existing_system"),
+            proposed_system=analysis.get("proposed_system"),
+            unique_features=analysis.get("unique_features", []),
+            architecture_summary=analysis.get("architecture_summary"),
+        )
+    except Exception as exc:
+        logger.error(f"GitHub codebase analysis failed for {payload.url}: {exc}")
+        raise HTTPException(status_code=500, detail=f"Failed to analyze GitHub repository: {exc}")
+
+
+@router.post("/{project_id}/import-github", response_model=MessageResponse)
+async def import_github_code_to_project(project_id: str, payload: GitHubImportToProjectRequest):
+    """
+    Imports and indexes a GitHub repository's code architecture, schemas,
+    and technical documentation directly into the project's ChromaDB RAG store.
+    """
+    _fetch_project_or_404(project_id)
+
+    try:
+        owner, repo, branch = parse_github_url(payload.github_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    try:
+        repo_data = await fetch_github_repository_data(owner, repo, branch or payload.branch)
+        analysis = await analyze_github_codebase(repo_data)
+        chunks_count = await ingest_github_to_rag(project_id, repo_data, analysis)
+
+        # Update project record with GitHub URL and updated details if available
+        db = get_supabase()
+        try:
+            db.table("projects").update({
+                "github_url": payload.github_url,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", project_id).execute()
+        except Exception as e:
+            logger.warning(f"Could not update github_url on projects table: {e}")
+
+        return MessageResponse(
+            message=f"Successfully imported and indexed GitHub repository '{owner}/{repo}' into project. ({chunks_count} vector chunks generated)"
+        )
+    except Exception as exc:
+        logger.error(f"GitHub RAG ingestion failed: {exc}")
+        raise HTTPException(status_code=500, detail=f"Failed to import GitHub code: {exc}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -184,4 +299,5 @@ def _map_project(row: dict) -> ProjectResponse:
         academic_year=row.get("academic_year"),
         created_at=row["created_at"],
         updated_at=row.get("updated_at"),
+        github_url=row.get("github_url"),
     )

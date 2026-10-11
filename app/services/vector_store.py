@@ -7,9 +7,11 @@ Responsibilities:
 """
 from __future__ import annotations
 
+import os
 import uuid
 from typing import Optional
 
+os.environ.setdefault("USE_TF", "0")
 import chromadb
 from loguru import logger
 from sentence_transformers import SentenceTransformer

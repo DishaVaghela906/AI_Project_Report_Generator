@@ -78,6 +78,7 @@ class ProjectCreateRequest(BaseModel):
     testing_details: Optional[str] = None
     results: Optional[str] = None
     future_scope: Optional[str] = None
+    github_url: Optional[str] = None
 
 
 class ProjectResponse(BaseModel):
@@ -99,6 +100,7 @@ class ProjectResponse(BaseModel):
     academic_year: Optional[str]
     created_at: datetime
     updated_at: Optional[datetime]
+    github_url: Optional[str] = None
 
 
 class ProjectUpdateRequest(BaseModel):
@@ -124,6 +126,47 @@ class ProjectUpdateRequest(BaseModel):
     testing_details: Optional[str] = None
     results: Optional[str] = None
     future_scope: Optional[str] = None
+    github_url: Optional[str] = None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GitHub Import & Analysis
+# ─────────────────────────────────────────────────────────────────────────────
+
+class GitHubAnalyzeRequest(BaseModel):
+    url: Optional[str] = Field(None, description="GitHub repository or branch URL, e.g. https://github.com/owner/repo")
+    github_url: Optional[str] = Field(None, description="Alternative alias for repository URL")
+    branch: Optional[str] = Field(None, description="Optional branch name")
+
+    @property
+    def target_url(self) -> str:
+        res = self.url or self.github_url
+        if not res:
+            raise ValueError("Either 'url' or 'github_url' must be provided")
+        return res
+
+
+class GitHubAnalyzeResponse(BaseModel):
+    github_url: str
+    owner: str
+    repo: str
+    title: str
+    domain: str
+    category: str
+    problem_statement: str
+    tech_stack: list[str]
+    modules: list[str]
+    database_used: Optional[str] = None
+    methodology: str = "Agile Iterative Development"
+    existing_system: Optional[str] = None
+    proposed_system: Optional[str] = None
+    unique_features: list[str] = []
+    architecture_summary: Optional[str] = None
+
+
+class GitHubImportToProjectRequest(BaseModel):
+    github_url: str = Field(..., description="GitHub repository URL")
+    branch: Optional[str] = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────

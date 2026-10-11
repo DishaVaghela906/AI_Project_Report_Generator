@@ -1535,3 +1535,230 @@ h4 {
   opacity: 1;
   transform: translateX(0);
 }
+
+/* ==========================================================================
+   GitHub Code Import & Analysis UI Styles
+   ========================================================================== */
+.new-project-modal-card {
+  max-width: 680px;
+  width: 95vw;
+}
+
+.github-import-box {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.github-import-box:hover {
+  border-color: var(--brand-accent);
+}
+
+.github-import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.github-import-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.github-import-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--brand-accent-light);
+  color: var(--brand-accent);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+}
+
+.github-import-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.github-import-input-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.github-input-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.github-input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.github-input {
+  padding-left: 38px !important;
+  width: 100%;
+}
+
+.btn-analyze-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.github-analysis-alert {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.github-analysis-alert.success {
+  background: var(--status-done-bg);
+  color: var(--status-done-text);
+  border: 1px solid rgba(19, 115, 51, 0.2);
+}
+
+.github-analysis-alert.error {
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+  border: 1px solid rgba(197, 34, 31, 0.2);
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+/* ==========================================================================
+   Gemini-Style "Import code" Modal (Screenshot 3 Replica)
+   ========================================================================== */
+.gemini-import-modal {
+  max-width: 540px;
+  width: 95vw;
+  border-radius: 24px;
+  padding: 1.75rem 2rem;
+  background: var(--bg-surface);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border-color);
+}
+
+.gemini-import-modal .modal-header {
+  border-bottom: none;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.gemini-import-modal .modal-header h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+}
+
+.gemini-input-group {
+  position: relative;
+  margin-top: 0.5rem;
+}
+
+.gemini-input-label {
+  display: inline-block;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--brand-accent);
+  margin-bottom: 6px;
+  padding-left: 4px;
+}
+
+.gemini-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gemini-input {
+  flex: 1;
+  padding: 14px 18px;
+  font-size: 0.95rem;
+  border-radius: 12px;
+  border: 2px solid var(--border-color);
+  background: var(--bg-surface);
+  transition: all 0.2s ease;
+}
+
+.gemini-input:focus {
+  border-color: #1A73E8;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+}
+
+.gemini-import-btn {
+  background: #1A73E8;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 24px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.gemini-import-btn:hover:not(:disabled) {
+  background: #1557B0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.25);
+}
+
+.gemini-import-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gemini-import-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.gemini-folder-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1A73E8;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.gemini-folder-link:hover {
+  color: #1557B0;
+  text-decoration: underline;
+}

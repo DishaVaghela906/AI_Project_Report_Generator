@@ -8,6 +8,7 @@ import ProjectOverview from './components/ProjectOverview';
 import FullReportPreview from './components/FullReportPreview';
 import LandingHero from './components/LandingHero';
 import AuthModal from './components/AuthModal';
+import ImportCodeModal from './components/ImportCodeModal';
 
 export default function App() {
   const [llmHealth, setLlmHealth] = useState(null);
@@ -20,6 +21,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('tab-home');
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isImportCodeModalOpen, setIsImportCodeModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
   // User Auth State
@@ -121,9 +123,30 @@ export default function App() {
       setCurrentProject(newProj);
       setIsNewProjectModalOpen(false);
       setActiveTab('tab-generator');
+      loadUploadedFiles(newProj.id);
       showToast(`✓ Project "${newProj.title}" created successfully!`);
     } catch (err) {
       showToast('Error creating project: ' + (err.response?.data?.detail || err.message), 'error');
+    }
+  };
+
+  // API 3.5: Import Code from GitHub Repository
+  const handleImportGitHubCode = async (githubUrl) => {
+    if (!currentProject) {
+      showToast('Please select or create a project first', 'error');
+      return;
+    }
+    showToast(`Connecting & indexing GitHub repository...`);
+    try {
+      const res = await axios.post(`/api/v1/projects/${currentProject.id}/import-github`, {
+        github_url: githubUrl,
+      });
+      showToast(res.data?.message || '✓ GitHub code imported and indexed into RAG store!');
+      loadUploadedFiles(currentProject.id);
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message;
+      showToast(`GitHub import failed: ${msg}`, 'error');
+      throw err;
     }
   };
 
@@ -277,6 +300,7 @@ export default function App() {
             onSelectProject={setCurrentProject}
             uploadedFiles={uploadedFiles}
             onFileUpload={handleFileUpload}
+            onOpenImportCodeModal={() => setIsImportCodeModalOpen(true)}
             chaptersData={chaptersData}
             currentChapterNumber={currentChapterNumber}
             onSelectChapter={setCurrentChapterNumber}
@@ -349,6 +373,13 @@ export default function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={handleAuthSuccess}
+      />
+
+      <ImportCodeModal
+        isOpen={isImportCodeModalOpen}
+        onClose={() => setIsImportCodeModalOpen(false)}
+        onImportGitHub={handleImportGitHubCode}
+        currentProjectId={currentProject?.id}
       />
 
       {/* Toast Notification */}
