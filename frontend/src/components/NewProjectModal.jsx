@@ -19,6 +19,16 @@ export default function NewProjectModal({ isOpen, onClose, onCreateProject }) {
     const payload = {
       ...formData,
       tech_stack: formData.tech_stack.split(',').map(s => s.trim()).filter(Boolean),
+      objectives: [
+        'Design and implement robust system architecture',
+        'Develop user-friendly interface and backend services',
+        'Conduct thorough testing and evaluation'
+      ],
+      modules: [
+        'User Management & Auth',
+        'Core Application Logic',
+        'Report Generation Engine'
+      ],
       sdlc_model: 'Agile',
     };
     onCreateProject(payload);

@@ -6,9 +6,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 
+from app.core.auth import get_current_user_optional
 from app.core.database import get_supabase
 from app.models.schemas import (
     MessageResponse,
@@ -26,13 +27,19 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
 # ─────────────────────────────────────────────────────────────────────────────
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
-async def create_project(payload: ProjectCreateRequest):
+async def create_project(
+    payload: ProjectCreateRequest,
+    current_user: dict | None = Depends(get_current_user_optional)
+):
     """Create a new project with all its details."""
     db = get_supabase()
     now = datetime.now(timezone.utc).isoformat()
 
+    user_id = current_user.get("sub") if current_user else None
+
     row = {
         "id": str(uuid.uuid4()),
+        "user_id": user_id,
         "title": payload.title,
         "domain": payload.domain,
         "category": payload.category.value,
@@ -73,10 +80,13 @@ async def create_project(payload: ProjectCreateRequest):
 # ─────────────────────────────────────────────────────────────────────────────
 
 @router.get("/", response_model=list[ProjectResponse])
-async def list_projects():
+async def list_projects(current_user: dict | None = Depends(get_current_user_optional)):
     """List all projects (ordered by most recent)."""
     db = get_supabase()
-    result = db.table("projects").select("*").order("created_at", desc=True).execute()
+    query = db.table("projects").select("*")
+    if current_user and current_user.get("sub"):
+        query = query.eq("user_id", current_user["sub"])
+    result = query.order("created_at", desc=True).execute()
     return [_map_project(r) for r in result.data]
 
 

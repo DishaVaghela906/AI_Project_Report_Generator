@@ -14,9 +14,12 @@ from pydantic import BaseModel, Field
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ProjectCategory(str, Enum):
-    INTERNET_BASED = "Internet Based"
     APPLICATION = "Application or System Development"
+    INTERNET_BASED = "Internet Based"
     RESEARCH = "Research Based"
+    RESEARCH_PROJECT = "Research Project"
+    DATA_SCIENCE_ML = "Data Science & ML"
+    EMBEDDED_IOT = "Embedded Systems / IoT"
     INDUSTRY_AUTOMATION = "Industry Automation"
     NETWORK_ADMIN = "Network or System Administration"
 
@@ -57,10 +60,10 @@ class ProjectCreateRequest(BaseModel):
     domain: str = Field(..., description="e.g. Web, ML, IoT, Networking")
     category: ProjectCategory
     problem_statement: str
-    objectives: list[str] = Field(..., min_length=1)
-    tech_stack: list[str] = Field(..., description="Languages, frameworks, tools")
-    modules: list[str] = Field(..., description="Major modules of the project")
-    methodology: str = Field(..., description="Approach taken, e.g. Agile, Waterfall")
+    objectives: list[str] = Field(default_factory=list)
+    tech_stack: list[str] = Field(default_factory=list, description="Languages, frameworks, tools")
+    modules: list[str] = Field(default_factory=list, description="Major modules of the project")
+    methodology: str = Field(default="Agile Iterative Development", description="Approach taken, e.g. Agile, Waterfall")
     sdlc_model: SDLCModel = SDLCModel.AGILE
     database_used: Optional[str] = None
     team_members: list[TeamMember] = []
@@ -187,6 +190,35 @@ class ReportExportResponse(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# User Authentication
+# ─────────────────────────────────────────────────────────────────────────────
+
+class UserSignupRequest(BaseModel):
+    email: str = Field(..., description="User email address")
+    password: str = Field(..., min_length=6, description="User password (min 6 chars)")
+    full_name: str = Field(..., min_length=2, description="Full name of user")
+
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    role: str = "user"
+    created_at: Optional[datetime] = None
+
+
+class AuthTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Generic Responses
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -198,3 +230,4 @@ class MessageResponse(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
+

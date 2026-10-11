@@ -7,6 +7,7 @@ import ChapterStudio from './components/ChapterStudio';
 import ProjectOverview from './components/ProjectOverview';
 import FullReportPreview from './components/FullReportPreview';
 import LandingHero from './components/LandingHero';
+import AuthModal from './components/AuthModal';
 
 export default function App() {
   const [llmHealth, setLlmHealth] = useState(null);
@@ -18,13 +19,61 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState('tab-home');
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+
+  // User Auth State
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem('auth_token') || null);
+
+  // Configure Axios Auth Header Interceptor
+  useEffect(() => {
+    if (authToken) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+      localStorage.setItem('auth_token', authToken);
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+      localStorage.removeItem('auth_token');
+    }
+  }, [authToken]);
 
   // Initial Load
   useEffect(() => {
     checkHealth();
     loadProjects();
   }, []);
+
+  const handleAuthSuccess = (user, token, message) => {
+    setCurrentUser(user);
+    setAuthToken(token);
+    localStorage.setItem('auth_user', JSON.stringify(user));
+    localStorage.setItem('auth_token', token);
+    showToast(`✓ Welcome ${user.full_name}! ${message}`);
+  };
+
+  const handleLogout = async () => {
+    try {
+      if (authToken) {
+        await axios.post('/api/v1/auth/logout');
+      }
+    } catch (e) {
+      // Ignore
+    }
+    setCurrentUser(null);
+    setAuthToken(null);
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_token');
+    delete axios.defaults.headers.common['Authorization'];
+    showToast('You have been logged out.');
+  };
 
   // When active project changes, load uploaded files & chapters
   useEffect(() => {
@@ -203,23 +252,26 @@ export default function App() {
   return (
     <div>
       {/* Header */}
-      <Header 
+      <Header
         llmHealth={llmHealth}
         activeTab={activeTab}
         onSelectTab={setActiveTab}
-        onOpenNewProjectModal={() => setIsNewProjectModalOpen(true)} 
+        onOpenNewProjectModal={() => setIsNewProjectModalOpen(true)}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Container: Landing Page or Workspace */}
       {activeTab === 'tab-home' ? (
-        <LandingHero 
+        <LandingHero
           onLaunchStudio={() => setActiveTab('tab-generator')}
           onNewProject={() => setIsNewProjectModalOpen(true)}
           onSelectTab={setActiveTab}
         />
       ) : (
         <div class="app-container">
-          <Sidebar 
+          <Sidebar
             projects={projects}
             currentProject={currentProject}
             onSelectProject={setCurrentProject}
@@ -233,22 +285,22 @@ export default function App() {
 
           <main class="app-main">
             <div class="workspace-card">
-              
+
               {/* Workspace Tabs */}
               <nav class="workspace-nav">
-                <div 
+                <div
                   class={`nav-tab ${activeTab === 'tab-generator' ? 'active' : ''}`}
                   onClick={() => setActiveTab('tab-generator')}
                 >
                   Chapter Generator
                 </div>
-                <div 
+                <div
                   class={`nav-tab ${activeTab === 'tab-project-info' ? 'active' : ''}`}
                   onClick={() => setActiveTab('tab-project-info')}
                 >
                   Project Overview
                 </div>
-                <div 
+                <div
                   class={`nav-tab ${activeTab === 'tab-full-preview' ? 'active' : ''}`}
                   onClick={() => setActiveTab('tab-full-preview')}
                 >
@@ -258,7 +310,7 @@ export default function App() {
 
               {/* Tab 1: Studio */}
               {activeTab === 'tab-generator' && (
-                <ChapterStudio 
+                <ChapterStudio
                   currentChapterNumber={currentChapterNumber}
                   chapterData={chaptersData[currentChapterNumber]}
                   isGenerating={isGenerating}
@@ -274,10 +326,10 @@ export default function App() {
 
               {/* Tab 3: Full Report Preview */}
               {activeTab === 'tab-full-preview' && (
-                <FullReportPreview 
-                  project={currentProject} 
-                  chaptersData={chaptersData} 
-                  onExport={handleExport} 
+                <FullReportPreview
+                  project={currentProject}
+                  chaptersData={chaptersData}
+                  onExport={handleExport}
                 />
               )}
 
@@ -286,17 +338,23 @@ export default function App() {
         </div>
       )}
 
-      {/* Modal */}
-      <NewProjectModal 
+      {/* Modals */}
+      <NewProjectModal
         isOpen={isNewProjectModalOpen}
         onClose={() => setIsNewProjectModalOpen(false)}
         onCreateProject={handleCreateProject}
       />
 
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+      />
+
       {/* Toast Notification */}
       {toastMessage && (
         <div class="toast-container">
-          <div 
+          <div
             class="toast"
             style={{
               backgroundColor: toastMessage.type === 'error' ? 'var(--status-error-bg)' : 'var(--brand-primary)',

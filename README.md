@@ -32,7 +32,10 @@ Enforces rigid university and institutional report standards automatically acros
 ### 4. 🧠 120B Parameter AI Model Integration
 - Direct integration with Groq API supporting high-parameter models (`openai/gpt-oss-120b`).
 - Built-in exponential backoff retry mechanism to gracefully handle HTTP 429 rate limits.
-- RAG retrieval system powered by **ChromaDB vector store** for context-grounded chapter generation.
+### 5. 🔐 Full User Authentication Module
+- Secure JWT authentication (`pyjwt` with HS256) and password hashing (`bcrypt`).
+- API Endpoints: `POST /api/v1/auth/signup`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`.
+- React `AuthModal` matching the Beige & Black theme with Sign In / Sign Up tabs, persistent session storage, and header user avatar badge.
 
 ---
 

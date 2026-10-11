@@ -7,8 +7,6 @@ import {
   CheckCircle, 
   Cpu, 
   Database, 
-  Download, 
-  ShieldCheck, 
   BookOpen 
 } from 'lucide-react';
 
@@ -62,7 +60,7 @@ export default function LandingHero({ onLaunchStudio, onNewProject, onSelectTab 
           </div>
           <div class="spec-pill">
             <CheckCircle size={14} class="pill-icon" />
-            <span>No Signup Required</span>
+            <span>Secure User Authentication</span>
           </div>
         </div>
       </div>
@@ -87,16 +85,10 @@ export default function LandingHero({ onLaunchStudio, onNewProject, onSelectTab 
             <p>Upload project documentation and PDFs. Context chunks are vectorized into ChromaDB for accurate output grounding.</p>
           </div>
 
-          <div class="feature-card" onClick={() => onSelectTab && onSelectTab('tab-full-preview')}>
-            <div class="feature-icon"><BookOpen size={24} /></div>
+          <div className="feature-card" onClick={() => onSelectTab && onSelectTab('tab-full-preview')}>
+            <div className="feature-icon"><BookOpen size={24} /></div>
             <h3>Strict Academic Rules</h3>
             <p>Strictly adheres to 16pt main headings, 14pt subheadings, 12pt justified body text, and native PDF grid tables.</p>
-          </div>
-
-          <div class="feature-card" onClick={onLaunchStudio}>
-            <div class="feature-icon"><Download size={24} /></div>
-            <h3>Zero Black Box Exports</h3>
-            <p>Sanitized ReportLab & DOCX export pipeline ensures clean diagrams, ASCII charts, and clean typography with no missing glyphs.</p>
           </div>
         </div>
       </div>
@@ -132,7 +124,7 @@ export default function LandingHero({ onLaunchStudio, onNewProject, onSelectTab 
       <div class="landing-footer-banner">
         <div class="banner-content">
           <h3>Ready to generate your report?</h3>
-          <p>Bypass signup and start using the Report Studio immediately.</p>
+          <p>Sign in to access Report Studio and generate publication-ready academic reports.</p>
         </div>
         <button class="btn btn-primary btn-lg" onClick={onLaunchStudio}>
           <Zap size={18} />

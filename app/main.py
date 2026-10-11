@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from app.core.config import settings
-from app.routers import chapters, projects, reports, uploads
+from app.routers import auth, chapters, projects, reports, uploads
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -83,6 +83,7 @@ app.add_middleware(
 # Routers
 # ─────────────────────────────────────────────────────────────────────────────
 
+app.include_router(auth.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(uploads.router, prefix="/api/v1")
 app.include_router(chapters.router, prefix="/api/v1")

@@ -1,21 +1,30 @@
 import React from 'react';
-import { Plus, Home, Layout } from 'lucide-react';
+import { Plus, Home, Layout, User, LogOut, LogIn } from 'lucide-react';
 
-export default function Header({ llmHealth, activeTab, onSelectTab, onOpenNewProjectModal }) {
-  const isReady = llmHealth?.ready;
-  const provider = llmHealth?.provider?.toUpperCase() || 'LLM';
-  const model = llmHealth?.model || '';
+export default function Header({ 
+  llmHealth, 
+  activeTab, 
+  onSelectTab, 
+  onOpenNewProjectModal,
+  currentUser,
+  onOpenAuthModal,
+  onLogout
+}) {
+  const getInitial = (name) => {
+    if (!name) return 'U';
+    return name.charAt(0).toUpperCase();
+  };
 
   return (
-    <header class="app-header">
-      <div class="brand-container" style={{ cursor: 'pointer' }} onClick={() => onSelectTab('tab-home')}>
-        <div class="brand-logo">AI</div>
-        <span class="brand-title">AI Report Generator</span>
+    <header className="app-header">
+      <div className="brand-container" style={{ cursor: 'pointer' }} onClick={() => onSelectTab('tab-home')}>
+        <div className="brand-logo">AI</div>
+        <span className="brand-title">AI Report Generator</span>
       </div>
 
-      <nav class="header-nav">
+      <nav className="header-nav">
         <button 
-          class={`header-nav-btn ${activeTab === 'tab-home' ? 'active' : ''}`}
+          className={`header-nav-btn ${activeTab === 'tab-home' ? 'active' : ''}`}
           onClick={() => onSelectTab('tab-home')}
         >
           <Home size={16} />
@@ -23,7 +32,7 @@ export default function Header({ llmHealth, activeTab, onSelectTab, onOpenNewPro
         </button>
         
         <button 
-          class={`header-nav-btn ${activeTab !== 'tab-home' ? 'active' : ''}`}
+          className={`header-nav-btn ${activeTab !== 'tab-home' ? 'active' : ''}`}
           onClick={() => onSelectTab('tab-generator')}
         >
           <Layout size={16} />
@@ -31,21 +40,23 @@ export default function Header({ llmHealth, activeTab, onSelectTab, onOpenNewPro
         </button>
       </nav>
       
-      <div class="header-actions">
-        <div 
-          class="llm-badge"
-          style={{
-            backgroundColor: isReady ? 'var(--brand-accent-light)' : 'var(--status-error-bg)',
-            color: isReady ? 'var(--brand-accent)' : 'var(--status-error-text)',
-            borderColor: isReady ? 'var(--border-color)' : 'var(--status-error-text)'
-          }}
-        >
-          <span 
-            class="status-dot" 
-            style={{ backgroundColor: isReady ? '#10B981' : '#EF4444' }}
-          ></span>
-          <span>{isReady ? `${provider}: ${model}` : `LLM Offline (${provider})`}</span>
-        </div>
+      <div className="header-actions">
+
+        {/* Auth State */}
+        {currentUser ? (
+          <div class="user-badge">
+            <div class="user-avatar">{getInitial(currentUser.full_name)}</div>
+            <span>{currentUser.full_name}</span>
+            <button class="btn btn-secondary btn-logout" onClick={onLogout} title="Log Out">
+              <LogOut size={14} />
+            </button>
+          </div>
+        ) : (
+          <button class="btn btn-secondary btn-sm" onClick={onOpenAuthModal}>
+            <LogIn size={15} /> Sign In
+          </button>
+        )}
+
         <button class="btn btn-primary btn-sm" onClick={onOpenNewProjectModal}>
           <Plus size={16} /> New Project
         </button>
@@ -53,4 +64,5 @@ export default function Header({ llmHealth, activeTab, onSelectTab, onOpenNewPro
     </header>
   );
 }
+
 
