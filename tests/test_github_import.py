@@ -87,3 +87,49 @@ def test_analyze_github_endpoint_invalid_url():
     # Non-GitHub URL returns 400 Bad Request
     response = client.post("/api/v1/projects/analyze-github", json={"url": "https://gitlab.com/user/project"})
     assert response.status_code == 400
+
+
+def test_parse_sql_ddl():
+    from app.services.github_service import parse_sql_ddl
+
+    sql = """
+    CREATE TABLE customers (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(150) UNIQUE NOT NULL
+    );
+
+    CREATE TABLE invoices (
+        invoice_id INT PRIMARY KEY,
+        customer_id INT REFERENCES customers(id),
+        total DECIMAL(10, 2) NOT NULL
+    );
+    """
+    res = parse_sql_ddl(sql)
+    assert len(res["tables"]) == 2
+    assert res["tables"][0]["table_name"] == "customers"
+    assert res["tables"][1]["table_name"] == "invoices"
+    assert len(res["relationships"]) == 1
+    assert res["relationships"][0]["from_table"] == "invoices"
+    assert res["relationships"][0]["to_table"] == "customers"
+    assert "Data Dictionary" in res["data_dictionary_md"]
+
+
+@pytest.mark.asyncio
+async def test_diagram_generation_and_serving():
+    from app.services.diagram_service import generate_diagram_image
+
+    url, path = await generate_diagram_image(
+        project_id="test_proj_diag",
+        diagram_type="ch3_architecture_diagram",
+        prompt="System Architecture Diagram",
+        title="Test System"
+    )
+    assert path.exists()
+    assert url.startswith("/api/v1/diagrams/test_proj_diag/")
+
+    # Test serving via API endpoint
+    response = client.get(url)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+

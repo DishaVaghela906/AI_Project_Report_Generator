@@ -8,10 +8,11 @@ import os
 os.environ["USE_TF"] = "0"
 os.environ["USE_TORCH"] = "1"
 
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI):
 
     # Ensure storage directories exist
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+    Path(settings.DIAGRAMS_DIR).mkdir(parents=True, exist_ok=True)
     Path(settings.CHROMA_PERSIST_DIR).mkdir(parents=True, exist_ok=True)
     (Path(settings.UPLOAD_DIR).parent / "exports").mkdir(parents=True, exist_ok=True)
 
@@ -79,6 +81,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def log_api_requests(request: Request, call_next):
+    """Log all incoming frontend API requests and response status codes."""
+    start_time = time.time()
+    method = request.method
+    path = request.url.path
+
+    # Log incoming request
+    if path.startswith("/api/"):
+        logger.info(f"➡️  Incoming API: {method} {path}")
+
+    response = await call_next(request)
+    elapsed_ms = (time.time() - start_time) * 1000
+
+    if path.startswith("/api/"):
+        status = response.status_code
+        if status >= 400:
+            logger.error(f"❌ API {method} {path} → {status} ({elapsed_ms:.1f}ms)")
+        else:
+            logger.success(f"✓ API {method} {path} → {status} ({elapsed_ms:.1f}ms)")
+
+    return response
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Routers
 # ─────────────────────────────────────────────────────────────────────────────
@@ -88,6 +114,18 @@ app.include_router(projects.router, prefix="/api/v1")
 app.include_router(uploads.router, prefix="/api/v1")
 app.include_router(chapters.router, prefix="/api/v1")
 app.include_router(reports.router, prefix="/api/v1")
+
+
+from fastapi.responses import FileResponse
+from app.services.diagram_service import get_diagram_path
+
+@app.get("/api/v1/diagrams/{project_id}/{filename}", tags=["Diagrams"])
+async def get_diagram_file_main(project_id: str, filename: str):
+    path = get_diagram_path(project_id, filename)
+    if not path or not path.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Diagram image not found")
+    return FileResponse(str(path), media_type="image/png")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

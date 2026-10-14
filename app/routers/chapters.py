@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from loguru import logger
 
 from app.core.database import get_supabase
@@ -26,7 +26,14 @@ from app.models.schemas import (
     ChapterResponse,
     ChapterStatus,
     ChapterUpdateRequest,
+    DiagramGenerateRequest,
+    DiagramGenerateResponse,
     MessageResponse,
+)
+from app.services.diagram_service import (
+    ensure_chapter_diagrams,
+    generate_diagram_image,
+    get_diagram_path,
 )
 from app.services.llm_service import generate_chapter, stream_chapter
 from app.services.prompt_builder import CHAPTER_METADATA, build_prompt, get_chapter_title
@@ -95,6 +102,8 @@ async def generate(payload: ChapterGenerateRequest):
     # ── Generate ──────────────────────────────────────────────────────────────
     try:
         content = await generate_chapter(payload.chapter_number, prompt)
+        # Generate & embed accurate diagrams (via Hugging Face or technical renderer)
+        content = await ensure_chapter_diagrams(payload.project_id, payload.chapter_number, content, project)
         final_status = ChapterStatus.DONE.value
     except Exception as exc:
         logger.error(f"Chapter {payload.chapter_number} generation failed: {exc}")
@@ -160,6 +169,11 @@ async def stream_generate(project_id: str, chapter_number: int):
 
         # Persist after streaming completes
         content = "".join(full_text)
+        try:
+            content = await ensure_chapter_diagrams(project_id, chapter_number, content, project)
+        except Exception as e:
+            logger.warning(f"Error ensuring chapter diagrams during stream: {e}")
+
         now = datetime.now(timezone.utc).isoformat()
         existing = _get_chapter_row(project_id, chapter_number)
         if existing:
@@ -183,6 +197,58 @@ async def stream_generate(project_id: str, chapter_number: int):
             }).execute()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DIAGRAMS GENERATION & RETRIEVAL
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post("/{project_id}/generate-diagram", response_model=DiagramGenerateResponse)
+async def generate_diagram_for_project(project_id: str, payload: DiagramGenerateRequest):
+    """
+    Generates a technical diagram (ER diagram, architecture diagram, flowchart, etc.)
+    using Hugging Face Text-to-Image inference (with automatic technical fallback).
+    Optionally embeds the diagram into the associated chapter markdown.
+    """
+    db = get_supabase()
+    proj_res = db.table("projects").select("*").eq("id", project_id).execute()
+    if not proj_res.data:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
+    project = proj_res.data[0]
+
+    prompt = payload.prompt or f"{payload.diagram_type.replace('_', ' ').title()} for {project['title']}"
+    url, _ = await generate_diagram_image(
+        project_id=project_id,
+        diagram_type=payload.diagram_type,
+        prompt=prompt,
+        title=project["title"],
+        context_meta=project
+    )
+
+    # Optionally embed into chapter markdown if requested
+    if payload.embed_in_chapter and payload.chapter_number:
+        row = _get_chapter_row(project_id, payload.chapter_number)
+        if row and row.get("content"):
+            tag = f"\n\n![Figure {payload.chapter_number}: {payload.diagram_type.replace('_', ' ').title()}]({url})\n\n"
+            if url not in row["content"]:
+                new_content = row["content"] + tag
+                now = datetime.now(timezone.utc).isoformat()
+                db.table("chapters").update({"content": new_content, "updated_at": now}).eq("id", row["id"]).execute()
+
+    return DiagramGenerateResponse(
+        diagram_url=url,
+        diagram_type=payload.diagram_type,
+        message=f"Diagram '{payload.diagram_type}' generated successfully via Hugging Face/internal renderer."
+    )
+
+
+@router.get("/diagrams/{project_id}/{filename}")
+async def serve_diagram_file(project_id: str, filename: str):
+    """Serves generated technical diagram image."""
+    path = get_diagram_path(project_id, filename)
+    if not path or not path.exists():
+        raise HTTPException(status_code=404, detail="Diagram image not found")
+    return FileResponse(str(path), media_type="image/png")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

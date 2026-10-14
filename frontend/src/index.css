@@ -1762,3 +1762,71 @@ h4 {
   color: #1557B0;
   text-decoration: underline;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DIAGRAM PRESENTATION & HUGGING FACE ACTION STYLES
+   ───────────────────────────────────────────────────────────────────────────── */
+.diagram-action-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.diagram-action-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-primary);
+}
+
+.diagram-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-diagram {
+  background: var(--brand-primary);
+  color: #F9F6F0;
+  border: 1px solid var(--brand-accent);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-diagram:hover:not(:disabled) {
+  background: var(--brand-accent);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(140, 115, 85, 0.25);
+}
+
+.btn-diagram:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.markdown-output img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.75rem auto;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 6px 20px rgba(31, 28, 24, 0.08);
+  background-color: #FAF8F5;
+}

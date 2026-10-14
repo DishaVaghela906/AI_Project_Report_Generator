@@ -28,6 +28,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
     HRFlowable,
+    Image as RLImage,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -57,10 +58,10 @@ def export_to_pdf(
     doc = SimpleDocTemplate(
         str(out_path),
         pagesize=A4,
-        rightMargin=54,  # ~0.75 inch
-        leftMargin=54,
-        topMargin=54,
-        bottomMargin=54,
+        leftMargin=99,   # 3.5 cm as per MSU Baroda spec
+        rightMargin=35,  # 1.25 cm as per MSU Baroda spec
+        topMargin=71,    # 2.5 cm as per MSU Baroda spec
+        bottomMargin=35, # 1.25 cm as per MSU Baroda spec
     )
 
     styles = _build_pdf_styles()
@@ -108,88 +109,119 @@ def export_to_docx(
 def _build_pdf_styles():
     styles = getSampleStyleSheet()
 
-    # Cover Page Styles
+    # Cover Page Styles — matches MSU Baroda outer cover sample sheet
     styles.add(ParagraphStyle(
-        name="CoverTitle", fontSize=20, leading=26, alignment=TA_CENTER,
-        spaceAfter=14, fontName="Times-Bold", textColor=colors.HexColor("#1F1C18")
+        name="CoverTitle", fontSize=22, leading=28, alignment=TA_CENTER,
+        spaceAfter=12, spaceBefore=6, fontName="Times-Bold",
+        textColor=colors.HexColor("#000000")
     ))
     styles.add(ParagraphStyle(
         name="CoverSubtitle", fontSize=14, leading=20, alignment=TA_CENTER,
-        spaceAfter=8, fontName="Times-Roman", textColor=colors.HexColor("#333333")
+        spaceAfter=8, fontName="Times-Bold", textColor=colors.HexColor("#000000")
     ))
     styles.add(ParagraphStyle(
         name="CoverMeta", fontSize=12, leading=18, alignment=TA_CENTER,
-        spaceAfter=6, fontName="Times-Roman", textColor=colors.HexColor("#444444")
+        spaceAfter=5, fontName="Times-Roman", textColor=colors.HexColor("#000000")
     ))
 
-    # Main Heading: 16 pt (Bold)
+    # Chapter Main Heading: 16 pt Bold (as per MSU Baroda spec)
     styles.add(ParagraphStyle(
-        name="MainHeading", fontSize=16, leading=22, spaceAfter=12,
-        spaceBefore=18, fontName="Times-Bold", alignment=TA_LEFT,
-        textColor=colors.HexColor("#111111"), keepWithNext=True
+        name="MainHeading", fontSize=16, leading=24, spaceAfter=14,
+        spaceBefore=20, fontName="Times-Bold", alignment=TA_LEFT,
+        textColor=colors.HexColor("#000000"), keepWithNext=True
     ))
 
-    # Sub Headings: 14 pt (Bold)
+    # Section Sub Headings: 14 pt Bold
     styles.add(ParagraphStyle(
-        name="SubHeading", fontSize=14, leading=19, spaceAfter=8,
-        spaceBefore=14, fontName="Times-Bold", alignment=TA_LEFT,
-        textColor=colors.HexColor("#222222"), keepWithNext=True
+        name="SubHeading", fontSize=14, leading=20, spaceAfter=10,
+        spaceBefore=16, fontName="Times-Bold", alignment=TA_LEFT,
+        textColor=colors.HexColor("#000000"), keepWithNext=True
     ))
 
-    # Content Paragraph: 12 pt (Justified)
+    # Body Text: 12 pt Times New Roman, Justified, Double Spacing (leading=24)
+    # MSU Baroda spec: double space, 12pt Times Roman
     styles.add(ParagraphStyle(
-        name="BodyJustified", fontSize=12, leading=18, spaceAfter=10,
+        name="BodyJustified", fontSize=12, leading=24, spaceAfter=12,
         fontName="Times-Roman", alignment=TA_JUSTIFY,
-        textColor=colors.HexColor("#1F1C18")
+        textColor=colors.HexColor("#000000")
     ))
 
-    # Bullet Items: 12 pt (Justified)
+    # Bullet Items: 12 pt
     styles.add(ParagraphStyle(
-        name="BulletJustified", fontSize=12, leading=18, spaceAfter=6,
-        fontName="Times-Roman", alignment=TA_JUSTIFY, leftIndent=18,
-        textColor=colors.HexColor("#1F1C18")
+        name="BulletJustified", fontSize=12, leading=22, spaceAfter=6,
+        fontName="Times-Roman", alignment=TA_JUSTIFY, leftIndent=24,
+        textColor=colors.HexColor("#000000")
     ))
 
-    # Table Cell Styles: 12 pt
+    # Table Cell: 12 pt (caption at TOP of table as per MSU Baroda spec)
     styles.add(ParagraphStyle(
         name="TableCell", fontSize=12, leading=16, fontName="Times-Roman",
-        alignment=TA_LEFT, textColor=colors.HexColor("#1F1C18")
+        alignment=TA_LEFT, textColor=colors.HexColor("#000000")
     ))
     styles.add(ParagraphStyle(
         name="TableCellBold", fontSize=12, leading=16, fontName="Times-Bold",
-        alignment=TA_LEFT, textColor=colors.HexColor("#1F1C18")
+        alignment=TA_LEFT, textColor=colors.HexColor("#000000")
+    ))
+    # Table Caption: placed ABOVE the table
+    styles.add(ParagraphStyle(
+        name="TableCaption", fontSize=11, leading=16, fontName="Times-Bold",
+        alignment=TA_CENTER, textColor=colors.HexColor("#000000"),
+        spaceBefore=10, spaceAfter=4
     ))
 
-    # Code Block Style: 11 pt Courier
+    # Figure Caption: placed BELOW the figure as per MSU Baroda spec
     styles.add(ParagraphStyle(
-        name="CodeBlock", fontSize=11, leading=15, spaceAfter=10,
-        fontName="Courier", alignment=TA_LEFT, leftIndent=15,
-        textColor=colors.HexColor("#2C2621"), backColor=colors.HexColor("#F4EFE6")
+        name="FigureCaption", fontSize=11, leading=16, fontName="Times-Roman",
+        alignment=TA_CENTER, textColor=colors.HexColor("#000000"),
+        spaceBefore=4, spaceAfter=12
+    ))
+
+    # Code Block: 11pt Courier
+    styles.add(ParagraphStyle(
+        name="CodeBlock", fontSize=10, leading=14, spaceAfter=10,
+        fontName="Courier", alignment=TA_LEFT, leftIndent=18,
+        textColor=colors.HexColor("#000000")
     ))
 
     return styles
 
 
 def _pdf_cover_page(project: dict, styles) -> list:
-    team_names = "; ".join(
+    import datetime
+    team_names = "\n".join(
         m.get("name", "") for m in (project.get("team_members") or [])
     )
+    year = project.get("academic_year", str(datetime.datetime.now().year))
+    department = project.get("department", "Department of Computer Science and Engineering")
+    institution = project.get("institution", "Faculty of Technology & Engineering, The Maharaja Sayajirao University of Baroda, Vadodara")
+    guide = project.get("guide_name", "Project Guide")
+
     elements = [
-        Spacer(1, 1.2 * inch),
-        Paragraph(project.get("institution", "University Name"), styles["CoverSubtitle"]),
-        Paragraph(project.get("department", "Department of Computer Science"), styles["CoverSubtitle"]),
-        Spacer(1, 0.4 * inch),
-        HRFlowable(width="85%", thickness=1.5, color=colors.HexColor("#1F1C18")),
-        Spacer(1, 0.4 * inch),
-        Paragraph("PROJECT REPORT", styles["CoverSubtitle"]),
+        Spacer(1, 0.6 * inch),
+        # Project Title — 24pt as per MSU Baroda sample
+        Paragraph(project.get("title", "Project Title").upper(), styles["CoverTitle"]),
+        Spacer(1, 0.25 * inch),
+        Paragraph("MINOR / MAJOR PROJECT REPORT", styles["CoverSubtitle"]),
+        Spacer(1, 0.15 * inch),
+        Paragraph("Submitted in Partial Fulfilment for the Degree of", styles["CoverMeta"]),
+        Paragraph("BACHELOR OF ENGINEERING", styles["CoverSubtitle"]),
+        Paragraph("In", styles["CoverMeta"]),
+        Paragraph(f"({department})", styles["CoverSubtitle"]),
         Spacer(1, 0.2 * inch),
-        Paragraph(project.get("title", "Project Title"), styles["CoverTitle"]),
-        Spacer(1, 0.4 * inch),
-        HRFlowable(width="85%", thickness=1.5, color=colors.HexColor("#1F1C18")),
-        Spacer(1, 0.8 * inch),
-        Paragraph(f"<b>Submitted by:</b> {team_names or 'Student Name'}", styles["CoverMeta"]),
-        Paragraph(f"<b>Guide:</b> {project.get('guide_name', 'Faculty Supervisor')}", styles["CoverMeta"]),
-        Paragraph(f"<b>Academic Year:</b> {project.get('academic_year', '2024-25')}", styles["CoverMeta"]),
+        Paragraph("By", styles["CoverMeta"]),
+        Paragraph(team_names or "Student Name", styles["CoverSubtitle"]),
+        Spacer(1, 0.15 * inch),
+        Paragraph("pursued in", styles["CoverMeta"]),
+        Paragraph(department, styles["CoverMeta"]),
+        Spacer(1, 0.15 * inch),
+        Paragraph("TO", styles["CoverMeta"]),
+        Spacer(1, 0.2 * inch),
+        HRFlowable(width="60%", thickness=1, color=colors.HexColor("#888888")),
+        Spacer(1, 0.15 * inch),
+        Paragraph(institution, styles["CoverMeta"]),
+        Spacer(1, 0.25 * inch),
+        Paragraph(f"Academic Year: {year}", styles["CoverMeta"]),
+        Paragraph(f"Project Guide: {guide}", styles["CoverMeta"]),
         PageBreak(),
     ]
     return elements
@@ -254,6 +286,30 @@ def _pdf_chapter(chap: dict, styles) -> list:
                 elements.append(Spacer(1, 0.1 * inch))
                 elements.append(t)
                 elements.append(Spacer(1, 0.1 * inch))
+        elif kind == "image":
+            alt = payload.get("alt", "Technical Diagram")
+            src = payload.get("src", "")
+            local_path = None
+            if src.startswith("/api/v1/diagrams/"):
+                rel = src.replace("/api/v1/diagrams/", "")
+                local_path = Path(settings.DIAGRAMS_DIR) / rel
+            elif os.path.isabs(src):
+                local_path = Path(src)
+            else:
+                p_cand = Path(settings.DIAGRAMS_DIR) / src
+                if p_cand.exists():
+                    local_path = p_cand
+
+            if local_path and local_path.exists():
+                try:
+                    rl_img = RLImage(str(local_path), width=5.5 * inch, height=3.5 * inch, kind='proportional')
+                    elements.append(Spacer(1, 0.2 * inch))
+                    elements.append(rl_img)
+                    # Caption at the BOTTOM of figure, as per MSU Baroda spec
+                    elements.append(Paragraph(f"<i>{_markdown_to_pdf_xml(alt)}</i>", styles["FigureCaption"]))
+                    elements.append(Spacer(1, 0.25 * inch))
+                except Exception as exc:
+                    logger.warning(f"Failed to embed image {local_path} in PDF: {exc}")
         else:
             # Body Paragraph: 12 pt (Justified)
             elements.append(Paragraph(_markdown_to_pdf_xml(payload), styles["BodyJustified"]))
@@ -361,14 +417,15 @@ def _markdown_to_pdf_xml(text: str) -> str:
 # ─── DOCX Helpers ─────────────────────────────────────────────────────────────
 
 def _set_docx_styles(doc: Document) -> None:
-    """Apply global DOCX formatting: Times New Roman, 1-inch margins."""
+    """Apply MSU Baroda DOCX formatting: Times New Roman, prescribed margins."""
     section = doc.sections[0]
-    section.page_height = Inches(11.69)
-    section.page_width = Inches(8.27)
-    section.left_margin = Inches(1.0)
-    section.right_margin = Inches(1.0)
-    section.top_margin = Inches(1.0)
-    section.bottom_margin = Inches(1.0)
+    section.page_height = Inches(11.69)  # A4
+    section.page_width = Inches(8.27)    # A4
+    # MSU Baroda spec: left 3.5cm, top 2.5cm, right 1.25cm, bottom 1.25cm
+    section.left_margin = Inches(1.38)   # 3.5 cm
+    section.right_margin = Inches(0.49)  # 1.25 cm
+    section.top_margin = Inches(0.98)    # 2.5 cm
+    section.bottom_margin = Inches(0.49) # 1.25 cm
 
     # Base Normal Style
     normal_style = doc.styles['Normal']
@@ -484,6 +541,33 @@ def _docx_chapter(doc: Document, chap: dict) -> None:
                                 r_cell.font.name = 'Times New Roman'
                                 r_cell.font.size = Pt(12)
 
+        elif kind == "image":
+            alt = payload.get("alt", "Technical Diagram")
+            src = payload.get("src", "")
+            local_path = None
+            if src.startswith("/api/v1/diagrams/"):
+                rel = src.replace("/api/v1/diagrams/", "")
+                local_path = Path(settings.DIAGRAMS_DIR) / rel
+            elif os.path.isabs(src):
+                local_path = Path(src)
+            else:
+                p_cand = Path(settings.DIAGRAMS_DIR) / src
+                if p_cand.exists():
+                    local_path = p_cand
+
+            if local_path and local_path.exists():
+                try:
+                    p_img = doc.add_paragraph()
+                    p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p_img.add_run().add_picture(str(local_path), width=Inches(6.0))
+                    p_cap = doc.add_paragraph()
+                    p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    r_cap = p_cap.add_run(f"Figure: {alt}")
+                    r_cap.font.name = 'Times New Roman'
+                    r_cap.font.size = Pt(11)
+                    r_cap.italic = True
+                except Exception as exc:
+                    logger.warning(f"Failed to embed image {local_path} in DOCX: {exc}")
         else:
             # Content Paragraph: 12 pt (Justified)
             _add_formatted_docx_paragraph(doc, payload, size_pt=12, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
@@ -578,6 +662,13 @@ def _parse_markdown_blocks(content: str, strip_duplicate_h1: str | None = None) 
             parsed_table = _parse_markdown_table_lines(table_lines)
             if parsed_table:
                 blocks.append(("table", parsed_table))
+            continue
+
+        # Check for Markdown Image: ![caption](url)
+        img_match = re.match(r"^!\[(.*?)\]\((.*?)\)$", stripped)
+        if img_match:
+            blocks.append(("image", {"alt": img_match.group(1), "src": img_match.group(2)}))
+            i += 1
             continue
 
         # Check Headings

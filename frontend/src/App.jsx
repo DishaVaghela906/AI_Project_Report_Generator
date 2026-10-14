@@ -340,6 +340,7 @@ export default function App() {
                   isGenerating={isGenerating}
                   onGenerate={handleGenerateChapter}
                   onSaveContent={handleSaveChapterContent}
+                  projectId={currentProject?.id}
                 />
               )}
 

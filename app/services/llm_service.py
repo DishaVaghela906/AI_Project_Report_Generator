@@ -1,11 +1,5 @@
 """
-LLM Service — Multi-Provider Support (Groq, Hugging Face, OpenRouter, Ollama).
-
-Supports:
-  - Groq API (Qwen 2.5 Coder 32B, Qwen 2.5 32B, Llama 3.3 70B, DeepSeek R1 Qwen)
-  - Hugging Face Serverless / Router API (Qwen/Qwen2.5-72B-Instruct, etc.)
-  - OpenRouter API
-  - Local Ollama fallback
+LLM Service — Dedicated Groq Provider for Academic Chapter Generation.
 """
 from __future__ import annotations
 
@@ -14,17 +8,26 @@ import json
 from typing import AsyncIterator
 
 import httpx
-import ollama as ollama_sdk
 from loguru import logger
 
 from app.core.config import settings
 from app.services.prompt_builder import get_chapter_title
 
-SYSTEM_PROMPT = (
-    "You are an expert academic research assistant and project report author. "
-    "Write comprehensive, highly detailed, well-formatted, formal academic project report chapters. "
-    "Use clear headings, markdown formatting, bullet points, technical descriptions, and architectural explanations."
-)
+SYSTEM_PROMPT = """You are a senior academic technical writer helping engineering students write formal university project reports.
+
+Your writing must feel like it was written by a knowledgeable, hardworking student — not by an AI tool.
+
+Key rules you MUST follow without exception:
+1. NEVER start a section with generic AI-sounding openers like "In today's rapidly evolving world", "Leveraging cutting-edge technologies", "In the modern era", or "This project aims to harness the power of".
+2. Write every section grounded in the SPECIFIC project — use the actual project title, module names, database table names, tech stack names, and feature names provided in the prompt.
+3. Use natural academic phrases like: "The development team identified...", "During the analysis phase, it was observed that...", "The system was designed to address...", "Testing revealed that...", "As shown in Figure X.X...".
+4. Each section must have a clear, numbered heading and at least 3 well-developed paragraphs.
+5. Functional requirements must follow the format: "The system shall allow the user to [action]."
+6. Test cases must be in a table with: Test Case ID | Description | Input | Expected Output | Actual Output | Status.
+7. References must be in IEEE citation format.
+8. The report follows the MSU Baroda Faculty of Technology & Engineering, Department of Computer Science and Engineering project report format exactly.
+9. Output must be in clean, well-structured Markdown — headings, bullet points, numbered lists, and tables where appropriate.
+10. The content must read as if a dedicated engineering student who deeply understands their project wrote it over many weeks."""
 
 
 # ─── Public API ───────────────────────────────────────────────────────────────
@@ -34,43 +37,21 @@ async def generate_chapter(
     prompt: str,
 ) -> str:
     """
-    Generate a chapter using the configured LLM provider (Groq, Hugging Face, OpenRouter, or Ollama).
+    Generate a chapter using Groq API.
     """
-    provider, api_key, model = _resolve_provider_info(chapter_number)
     chapter_title = get_chapter_title(chapter_number)
-
     logger.info(
         f"Generating Chapter {chapter_number} ({chapter_title}) "
-        f"via provider='{provider}', model='{model}'"
+        f"via Groq model='{settings.GROQ_MODEL}'"
     )
 
-    if provider == "groq":
-        return await _generate_via_openai_compatible(
-            url="https://api.groq.com/openai/v1/chat/completions",
-            api_key=api_key or settings.GROQ_API_KEY,
-            model=model or settings.GROQ_MODEL,
-            prompt=prompt,
-            chapter_number=chapter_number,
-        )
-    elif provider in ("huggingface", "hf"):
-        return await _generate_via_openai_compatible(
-            url="https://router.huggingface.co/hf-inference/v1/chat/completions",
-            api_key=api_key or settings.HF_API_KEY,
-            model=model or settings.HF_MODEL,
-            prompt=prompt,
-            chapter_number=chapter_number,
-        )
-    elif provider == "openrouter":
-        return await _generate_via_openai_compatible(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            api_key=api_key or settings.OPENROUTER_API_KEY,
-            model=model or settings.OPENROUTER_MODEL,
-            prompt=prompt,
-            chapter_number=chapter_number,
-            extra_headers={"HTTP-Referer": "http://localhost:8000"},
-        )
-    else:  # default to ollama
-        return await _generate_via_ollama(prompt, chapter_number)
+    return await _generate_via_openai_compatible(
+        url="https://api.groq.com/openai/v1/chat/completions",
+        api_key=settings.GROQ_API_KEY,
+        model=settings.GROQ_MODEL,
+        prompt=prompt,
+        chapter_number=chapter_number,
+    )
 
 
 async def stream_chapter(
@@ -78,141 +59,58 @@ async def stream_chapter(
     prompt: str,
 ) -> AsyncIterator[str]:
     """
-    Stream-generate a chapter token-by-token (for SSE endpoints).
+    Stream-generate a chapter token-by-token (for SSE endpoints) via Groq.
     """
-    provider, api_key, model = _resolve_provider_info(chapter_number)
-    logger.info(f"Streaming Chapter {chapter_number} via provider='{provider}'")
+    logger.info(f"Streaming Chapter {chapter_number} via Groq model='{settings.GROQ_MODEL}'")
 
-    if provider == "groq":
-        async for token in _stream_via_openai_compatible(
-            url="https://api.groq.com/openai/v1/chat/completions",
-            api_key=api_key or settings.GROQ_API_KEY,
-            model=model or settings.GROQ_MODEL,
-            prompt=prompt,
-        ):
-            yield token
-    elif provider in ("huggingface", "hf"):
-        async for token in _stream_via_openai_compatible(
-            url="https://router.huggingface.co/hf-inference/v1/chat/completions",
-            api_key=api_key or settings.HF_API_KEY,
-            model=model or settings.HF_MODEL,
-            prompt=prompt,
-        ):
-            yield token
-    elif provider == "openrouter":
-        async for token in _stream_via_openai_compatible(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            api_key=api_key or settings.OPENROUTER_API_KEY,
-            model=model or settings.OPENROUTER_MODEL,
-            prompt=prompt,
-            extra_headers={"HTTP-Referer": "http://localhost:8000"},
-        ):
-            yield token
-    else:
-        async for token in _stream_via_ollama(prompt):
-            yield token
+    async for token in _stream_via_openai_compatible(
+        url="https://api.groq.com/openai/v1/chat/completions",
+        api_key=settings.GROQ_API_KEY,
+        model=settings.GROQ_MODEL,
+        prompt=prompt,
+    ):
+        yield token
 
 
 async def check_llm_health() -> dict:
-    """Check status of configured LLM provider."""
-    provider = settings.LLM_PROVIDER.lower()
-
-    if provider == "groq":
-        key = settings.GROQ_API_KEY
-        if not key or key == "gsk_your_groq_api_key_here":
+    """Check status of Groq LLM provider."""
+    key = settings.GROQ_API_KEY
+    if not key or key == "gsk_your_groq_api_key_here":
+        return {
+            "ready": False,
+            "provider": "groq",
+            "model": settings.GROQ_MODEL,
+            "message": "GROQ_API_KEY is missing in .env file. Obtain one at https://console.groq.com/keys",
+        }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.get(
+                "https://api.groq.com/openai/v1/models",
+                headers={"Authorization": f"Bearer {key}"},
+            )
+            if res.status_code == 200:
+                return {"ready": True, "provider": "groq", "model": settings.GROQ_MODEL}
             return {
                 "ready": False,
                 "provider": "groq",
                 "model": settings.GROQ_MODEL,
-                "message": "GROQ_API_KEY is missing in .env file. Obtain one at https://console.groq.com/keys",
+                "message": f"Groq API returned HTTP {res.status_code}: {res.text[:200]}",
             }
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.get(
-                    "https://api.groq.com/openai/v1/models",
-                    headers={"Authorization": f"Bearer {key}"},
-                )
-                if res.status_code == 200:
-                    return {"ready": True, "provider": "groq", "model": settings.GROQ_MODEL}
-                return {
-                    "ready": False,
-                    "provider": "groq",
-                    "model": settings.GROQ_MODEL,
-                    "message": f"Groq API returned HTTP {res.status_code}: {res.text[:200]}",
-                }
-        except Exception as exc:
-            return {"ready": False, "provider": "groq", "model": settings.GROQ_MODEL, "message": str(exc)}
-
-    elif provider in ("huggingface", "hf"):
-        key = settings.HF_API_KEY
-        if not key:
-            return {
-                "ready": False,
-                "provider": "huggingface",
-                "model": settings.HF_MODEL,
-                "message": "HF_API_KEY is missing in .env file. Obtain token at https://huggingface.co/settings/tokens",
-            }
-        return {"ready": True, "provider": "huggingface", "model": settings.HF_MODEL}
-
-    elif provider == "openrouter":
-        key = settings.OPENROUTER_API_KEY
-        if not key:
-            return {
-                "ready": False,
-                "provider": "openrouter",
-                "model": settings.OPENROUTER_MODEL,
-                "message": "OPENROUTER_API_KEY is missing in .env file.",
-            }
-        return {"ready": True, "provider": "openrouter", "model": settings.OPENROUTER_MODEL}
-
-    else:
-        # Ollama local check
-        try:
-            client = ollama_sdk.AsyncClient(host=settings.OLLAMA_BASE_URL)
-            models_response = await client.list()
-            available = [m.model for m in models_response.models]
-            model_ready = any(settings.OLLAMA_MODEL in m for m in available)
-            return {
-                "ready": model_ready,
-                "provider": "ollama",
-                "model": settings.OLLAMA_MODEL,
-                "message": "Local Ollama ready" if model_ready else f"Model {settings.OLLAMA_MODEL} not pulled",
-            }
-        except Exception as exc:
-            return {"ready": False, "provider": "ollama", "model": settings.OLLAMA_MODEL, "message": str(exc)}
+    except Exception as exc:
+        return {"ready": False, "provider": "groq", "model": settings.GROQ_MODEL, "message": str(exc)}
 
 
 async def check_ollama_health() -> bool:
-    """Backward compatibility alias for Ollama health check."""
+    """Backward compatibility alias."""
     status = await check_llm_health()
     return status.get("ready", False)
 
 
-# ─── Private Helpers ──────────────────────────────────────────────────────────
+# ─── Helper Functions ─────────────────────────────────────────────────────────
 
-def _resolve_provider_info(chapter_number: int) -> tuple[str, str, str]:
-    """Returns (provider_name, api_key, model) for a given chapter."""
-    chapter_key = settings.chapter_api_keys.get(chapter_number, "default").strip()
-
-    if chapter_key.startswith("gsk_"):
-        return "groq", chapter_key, settings.GROQ_MODEL
-    elif chapter_key.startswith("hf_"):
-        return "huggingface", chapter_key, settings.HF_MODEL
-    elif chapter_key.startswith("sk-or-"):
-        return "openrouter", chapter_key, settings.OPENROUTER_MODEL
-    elif chapter_key.lower() in ("ollama", "ollama-local", "local"):
-        return "ollama", "", settings.OLLAMA_MODEL
-
-    # Fall back to system LLM_PROVIDER
-    prov = settings.LLM_PROVIDER.lower()
-    if prov == "groq":
-        return "groq", settings.GROQ_API_KEY, settings.GROQ_MODEL
-    elif prov in ("huggingface", "hf"):
-        return "huggingface", settings.HF_API_KEY, settings.HF_MODEL
-    elif prov == "openrouter":
-        return "openrouter", settings.OPENROUTER_API_KEY, settings.OPENROUTER_MODEL
-    else:
-        return "ollama", "", settings.OLLAMA_MODEL
+def _resolve_provider_info(chapter_number: int = 1) -> tuple[str, str, str]:
+    """Returns provider info ('groq', api_key, model)."""
+    return "groq", settings.GROQ_API_KEY, settings.GROQ_MODEL
 
 
 async def _generate_via_openai_compatible(
@@ -226,8 +124,8 @@ async def _generate_via_openai_compatible(
     """Generate chapter using OpenAI-compatible HTTP chat completion API with 429 retry logic."""
     if not api_key:
         raise ValueError(
-            f"API Key is missing for provider model '{model}'. "
-            "Please configure the corresponding API key in your .env file."
+            f"GROQ_API_KEY is missing in your .env file. "
+            "Please configure your Groq API key to generate chapters."
         )
 
     headers = {
@@ -237,11 +135,9 @@ async def _generate_via_openai_compatible(
     if extra_headers:
         headers.update(extra_headers)
 
-    # Use configured max_tokens (default 1500 safely fits Groq rate limits)
     max_tokens = settings.LLM_MAX_TOKENS
 
     async with httpx.AsyncClient(timeout=180.0) as client:
-        # Retry loop for rate limits (429)
         max_retries = 3
         for attempt in range(1, max_retries + 1):
             payload = {
@@ -287,7 +183,7 @@ async def _stream_via_openai_compatible(
 ) -> AsyncIterator[str]:
     """Stream response tokens using OpenAI-compatible SSE stream."""
     if not api_key:
-        raise ValueError(f"API Key is missing for provider model '{model}'. Check your .env file.")
+        raise ValueError("GROQ_API_KEY is missing in your .env file.")
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -325,34 +221,3 @@ async def _stream_via_openai_compatible(
                             yield delta
                     except json.JSONDecodeError:
                         continue
-
-
-async def _generate_via_ollama(prompt: str, chapter_number: int) -> str:
-    """Fallback Ollama local generation."""
-    def _sync_call() -> str:
-        client = ollama_sdk.Client(host=settings.OLLAMA_BASE_URL)
-        response = client.generate(
-            model=settings.OLLAMA_MODEL,
-            prompt=prompt,
-            options={"temperature": 0.7, "top_p": 0.9, "num_predict": 4096},
-            stream=False,
-        )
-        return response.response
-
-    loop = asyncio.get_event_loop()
-    text = await loop.run_in_executor(None, _sync_call)
-    logger.success(f"Chapter {chapter_number} generated locally via Ollama ({len(text)} chars)")
-    return text
-
-
-async def _stream_via_ollama(prompt: str) -> AsyncIterator[str]:
-    """Fallback Ollama local streaming."""
-    client = ollama_sdk.AsyncClient(host=settings.OLLAMA_BASE_URL)
-    async for chunk in await client.generate(
-        model=settings.OLLAMA_MODEL,
-        prompt=prompt,
-        options={"temperature": 0.7, "top_p": 0.9, "num_predict": 4096},
-        stream=True,
-    ):
-        if chunk.response:
-            yield chunk.response

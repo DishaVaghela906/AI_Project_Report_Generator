@@ -11,5 +11,6 @@ if __name__ == "__main__":
         host=settings.HOST,
         port=settings.PORT,
         reload=settings.DEBUG,
-        log_level="debug" if settings.DEBUG else "info",
+        access_log=True,
+        log_level="info",
     )

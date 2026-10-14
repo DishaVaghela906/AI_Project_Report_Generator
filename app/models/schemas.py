@@ -211,6 +211,19 @@ class ChapterResponse(BaseModel):
     updated_at: Optional[datetime]
 
 
+class DiagramGenerateRequest(BaseModel):
+    diagram_type: str = Field("ch3_architecture_diagram", description="Type of diagram: ch3_architecture_diagram, ch3_er_diagram, flowchart, sdlc")
+    prompt: Optional[str] = Field(None, description="Custom prompt description for diagram generation")
+    chapter_number: Optional[int] = Field(3, description="Associated chapter number to embed into")
+    embed_in_chapter: bool = Field(True, description="Whether to automatically embed diagram tag into chapter markdown")
+
+
+class DiagramGenerateResponse(BaseModel):
+    diagram_url: str
+    diagram_type: str
+    message: str
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Report Export
 # ─────────────────────────────────────────────────────────────────────────────
